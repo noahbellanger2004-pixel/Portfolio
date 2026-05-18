@@ -1,0 +1,1707 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Noah Bellanger</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=Geist:wght@300;400;500&display=swap" rel="stylesheet"/>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg: #0d0d0f;
+  --surface: #15151a;
+  --surface2: #1e1e26;
+  --cyan: #00e5ff;
+  --purple: #a855f7;
+  --pink: #f472b6;
+  --green: #22d3a4;
+  --orange: #fb923c;
+  --yellow: #fbbf24;
+  --text: #f0f0f8;
+  --muted: #8080a0;
+  --border: rgba(255,255,255,0.06);
+}
+
+/* ── LIGHT MODE ── */
+body.light {
+  --bg: #f5f4f0;
+  --surface: #ffffff;
+  --surface2: #eeecea;
+  --text: #111110;
+  --muted: #6b6b70;
+  --border: rgba(0,0,0,0.08);
+}
+
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: 'Geist', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      overflow-x: hidden;
+      cursor: none;
+    }
+
+    /* ── CURSOR ── */
+    .cursor { width:12px;height:12px;background:var(--cyan);border-radius:50%;position:fixed;pointer-events:none;z-index:9999;transform:translate(-50%,-50%);transition:width .2s,height .2s,background .2s;mix-blend-mode:screen; }
+    .cursor-ring { width:36px;height:36px;border:1.5px solid var(--cyan);border-radius:50%;position:fixed;pointer-events:none;z-index:9998;transform:translate(-50%,-50%);transition:left .12s ease,top .12s ease,width .25s,height .25s,border-color .25s;opacity:.5; }
+
+    /* ── NOISE ── */
+    body::before { content:'';position:fixed;inset:0;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");pointer-events:none;z-index:1000;opacity:.3; }
+
+    /* ── MESH ── */
+    .mesh { position:fixed;inset:0;pointer-events:none;z-index:0;overflow:hidden; }
+    .mesh-blob { position:absolute;border-radius:50%;filter:blur(120px);opacity:.12;animation:drift 18s ease-in-out infinite alternate; }
+    .mesh-blob:nth-child(1){width:600px;height:600px;background:var(--purple);top:-200px;left:-200px;animation-delay:0s}
+    .mesh-blob:nth-child(2){width:500px;height:500px;background:var(--cyan);top:30%;right:-150px;animation-delay:-6s}
+    .mesh-blob:nth-child(3){width:400px;height:400px;background:var(--pink);bottom:0;left:30%;animation-delay:-12s}
+    @keyframes drift{0%{transform:translate(0,0) scale(1)}100%{transform:translate(40px,30px) scale(1.08)}}
+
+    /* ── NAV ── */
+    nav { position:fixed;top:0;left:0;right:0;z-index:500;display:flex;justify-content:space-between;align-items:center;padding:20px 60px;background:rgba(13,13,15,.7);backdrop-filter:blur(20px);border-bottom:1px solid var(--border); }
+    .nav-logo { font-family:'Syne',sans-serif;font-weight:800;font-size:20px;letter-spacing:-.02em;text-decoration:none;color:var(--text); }
+    .nav-logo .accent { color:var(--cyan); }
+    .nav-links { display:flex;gap:8px;list-style:none; }
+    .nav-links a { text-decoration:none;font-size:12.5px;font-weight:500;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);padding:7px 16px;border-radius:999px;border:1px solid transparent;transition:all .22s; }
+    .nav-links a:hover { color:var(--cyan);border-color:rgba(0,229,255,.25);background:rgba(0,229,255,.05); }
+
+    /* ── LANG SWITCHER ── */
+    .lang-switcher { display:flex;gap:4px;align-items:center; }
+    .lang-btn {
+      font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;
+      padding:5px 11px;border-radius:999px;border:1px solid var(--border);
+      background:transparent;color:var(--muted);cursor:pointer;
+      transition:all .2s;font-family:'Geist',sans-serif;
+    }
+    .lang-btn:hover { color:var(--text);border-color:rgba(255,255,255,.15); }
+    .lang-btn.active { background:rgba(0,229,255,.1);border-color:rgba(0,229,255,.35);color:var(--cyan); }
+
+    /* ── HERO ── */
+    .hero { min-height:100vh;display:flex;align-items:center;padding:120px 60px 80px;position:relative;z-index:1; }
+    .hero-inner { max-width:900px; }
+    .hero-badge { display:inline-flex;align-items:center;gap:8px;background:rgba(0,229,255,.08);border:1px solid rgba(0,229,255,.2);border-radius:999px;padding:6px 16px;font-size:12px;color:var(--cyan);letter-spacing:.08em;text-transform:uppercase;margin-bottom:32px;animation:pulse-border 2.5s ease-in-out infinite; }
+    @keyframes pulse-border{0%,100%{border-color:rgba(0,229,255,.2)}50%{border-color:rgba(0,229,255,.6)}}
+    .badge-dot { width:7px;height:7px;background:var(--cyan);border-radius:50%;animation:blink 1.4s ease-in-out infinite; }
+    @keyframes blink{0%,100%{opacity:1}50%{opacity:.2}}
+    h1 { font-family:'Syne',sans-serif;font-size:clamp(56px,8vw,110px);font-weight:800;line-height:.95;letter-spacing:-.03em;margin-bottom:24px; }
+    h1 .line1 { display:block;color:var(--text); }
+    h1 .line2 { display:block;background:linear-gradient(90deg,var(--cyan),var(--purple),var(--pink));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;background-size:200%;animation:grad-shift 4s linear infinite; }
+    @keyframes grad-shift{0%{background-position:0%}100%{background-position:200%}}
+    .hero-desc { font-size:16px;color:var(--muted);max-width:520px;line-height:1.8;margin-bottom:48px; }
+    .hero-desc strong { color:var(--text); }
+    .hero-cta { display:flex;gap:16px;flex-wrap:wrap;align-items:center; }
+    .btn-glow { position:relative;display:inline-flex;align-items:center;gap:8px;background:linear-gradient(135deg,var(--cyan),var(--purple));color:#000;font-weight:600;font-size:13px;letter-spacing:.06em;text-transform:uppercase;padding:14px 28px;border-radius:999px;text-decoration:none;transition:transform .2s,box-shadow .2s;box-shadow:0 0 30px rgba(0,229,255,.25); }
+    .btn-glow:hover { transform:translateY(-2px) scale(1.02);box-shadow:0 0 50px rgba(0,229,255,.4); }
+    .btn-ghost { display:inline-flex;align-items:center;gap:8px;border:1px solid var(--border);color:var(--text);font-size:13px;letter-spacing:.06em;text-transform:uppercase;padding:14px 28px;border-radius:999px;text-decoration:none;transition:border-color .2s,color .2s; }
+    .btn-ghost:hover { border-color:var(--purple);color:var(--purple); }
+    .scroll-hint { position:absolute;bottom:40px;left:60px;display:flex;align-items:center;gap:12px;color:var(--muted);font-size:11px;letter-spacing:.1em;text-transform:uppercase; }
+    .scroll-line { width:40px;height:1px;background:linear-gradient(90deg,var(--cyan),transparent);animation:scroll-grow 2s ease-in-out infinite; }
+    @keyframes scroll-grow{0%,100%{width:40px;opacity:.4}50%{width:70px;opacity:1}}
+    .hero-stats { position:absolute;bottom:40px;right:60px;display:flex;gap:40px; }
+    .stat { text-align:right; }
+    .stat-num { font-family:'Syne',sans-serif;font-size:28px;font-weight:800;background:linear-gradient(135deg,var(--cyan),var(--purple));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text; }
+    .stat-label { font-size:11px;color:var(--muted);letter-spacing:.08em;text-transform:uppercase; }
+
+    /* ── SECTIONS ── */
+    section { padding:100px 60px;position:relative;z-index:1; }
+    .section-tag { display:inline-block;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--cyan);margin-bottom:16px; }
+    .section-title { font-family:'Syne',sans-serif;font-size:clamp(36px,4.5vw,56px);font-weight:800;letter-spacing:-.02em;line-height:1.05;margin-bottom:60px; }
+    .hl { color:var(--purple); }
+    .hl-pink { color:var(--pink); }
+    .hl-green { color:var(--green); }
+
+    /* ── ABOUT ── */
+    #apropos { background:var(--surface); }
+    .about-grid { display:grid;grid-template-columns:1fr 1fr;gap:80px;align-items:start; }
+    .photo-wrapper { position:relative;display:flex;justify-content:center; }
+    .photo-card { width:300px;height:370px;background:var(--surface2);border-radius:20px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;border:1px solid var(--border);position:relative;overflow:hidden;transition:transform .3s; }
+    .photo-card:hover { transform:scale(1.02) rotate(-1deg); }
+    .photo-card::before { content:'';position:absolute;inset:0;background:linear-gradient(135deg,rgba(0,229,255,.05),rgba(168,85,247,.05)); }
+    .photo-card svg { opacity:.3;position:relative;z-index:1; }
+    .photo-card span { font-size:12px;color:var(--muted);letter-spacing:.1em;text-transform:uppercase;position:relative;z-index:1; }
+    .about-content { display:flex;flex-direction:column;gap:28px; }
+    .about-content p { font-size:15.5px;line-height:1.85;color:#b0b0c8; }
+    .about-content strong { color:var(--text);font-weight:500; }
+    .chips { display:flex;flex-wrap:wrap;gap:10px; }
+    .chip { display:inline-flex;align-items:center;gap:6px;padding:7px 16px;border-radius:999px;font-size:12px;font-weight:500;border:1px solid; }
+    .chip-cyan{border-color:rgba(0,229,255,.3);color:var(--cyan);background:rgba(0,229,255,.05)}
+    .chip-purple{border-color:rgba(168,85,247,.3);color:var(--purple);background:rgba(168,85,247,.05)}
+    .chip-pink{border-color:rgba(244,114,182,.3);color:var(--pink);background:rgba(244,114,182,.05)}
+    .chip-green{border-color:rgba(34,211,164,.3);color:var(--green);background:rgba(34,211,164,.05)}
+
+    /* ── SKILLS ── */
+    #competences { background:var(--bg); }
+    .skills-grid { display:grid;grid-template-columns:repeat(3,1fr);gap:16px; }
+    .skill-card { background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:28px;position:relative;overflow:hidden;transition:transform .25s,border-color .25s; }
+    .skill-card::before { content:'';position:absolute;top:0;left:0;right:0;height:2px;background:var(--card-accent,var(--cyan));transform:scaleX(0);transform-origin:left;transition:transform .35s ease; }
+    .skill-card:hover { transform:translateY(-6px);border-color:rgba(255,255,255,.12); }
+    .skill-card:hover::before { transform:scaleX(1); }
+    .skill-card:nth-child(1){--card-accent:linear-gradient(90deg,var(--cyan),var(--purple))}
+    .skill-card:nth-child(2){--card-accent:linear-gradient(90deg,var(--purple),var(--pink))}
+    .skill-card:nth-child(3){--card-accent:linear-gradient(90deg,var(--pink),var(--orange))}
+    .skill-card:nth-child(4){--card-accent:linear-gradient(90deg,var(--green),var(--cyan))}
+    .skill-card:nth-child(5){--card-accent:linear-gradient(90deg,var(--yellow),var(--orange))}
+    .skill-card:nth-child(6){--card-accent:linear-gradient(90deg,var(--purple),var(--cyan))}
+    .skill-emoji { font-size:28px;margin-bottom:14px;display:block; }
+    .skill-card h3 { font-family:'Syne',sans-serif;font-size:17px;font-weight:700;margin-bottom:12px; }
+    .skill-tags { display:flex;flex-wrap:wrap;gap:6px; }
+    .stag { font-size:11px;padding:3px 10px;border-radius:4px;background:rgba(255,255,255,.04);color:var(--muted);border:1px solid var(--border); }
+
+    /* ── PROJECTS ── */
+    #projets { background:var(--surface); }
+    .projects-list { display:flex;flex-direction:column;gap:2px; }
+    .project-row { display:grid;grid-template-columns:80px 1fr auto;align-items:center;gap:32px;padding:28px 32px;background:var(--surface2);border-radius:12px;border:1px solid var(--border);transition:background .2s,transform .2s,border-color .2s;cursor:default; }
+    .project-row:hover { background:#252530;transform:translateX(8px);border-color:rgba(255,255,255,.1); }
+    .project-row:hover .proj-arrow { opacity:1;transform:translateX(0); }
+    .proj-num { font-family:'Syne',sans-serif;font-size:13px;font-weight:700;color:var(--muted); }
+    .proj-info h3 { font-family:'Syne',sans-serif;font-size:18px;font-weight:700;margin-bottom:6px; }
+    .proj-info p { font-size:13.5px;color:var(--muted);line-height:1.6; }
+    .proj-tags { display:flex;gap:8px;flex-wrap:wrap;margin-top:10px; }
+    .proj-tag { font-size:10.5px;padding:3px 10px;border-radius:999px;font-weight:500; }
+    .pt-cyan{background:rgba(0,229,255,.1);color:var(--cyan)}
+    .pt-purple{background:rgba(168,85,247,.1);color:var(--purple)}
+    .pt-pink{background:rgba(244,114,182,.1);color:var(--pink)}
+    .pt-green{background:rgba(34,211,164,.1);color:var(--green)}
+    .proj-arrow {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--cyan);
+    opacity: 0;
+    transform: translateX(-8px);
+    transition: opacity .2s, transform .2s;
+    white-space: nowrap;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+    /* ── STAGE ── */
+    #stage { background:var(--bg); }
+    .stage-hero { background:linear-gradient(135deg,rgba(0,229,255,.06) 0%,rgba(168,85,247,.06) 50%,rgba(244,114,182,.06) 100%);border:1px solid var(--border);border-radius:24px;padding:56px;position:relative;overflow:hidden; }
+    .stage-hero::before { content:'';position:absolute;top:-80px;right:-80px;width:300px;height:300px;background:radial-gradient(circle,rgba(168,85,247,.15) 0%,transparent 70%);pointer-events:none; }
+    .stage-grid { display:grid;grid-template-columns:1fr 1fr;gap:56px;align-items:start; }
+    .stage-left h3 { font-family:'Syne',sans-serif;font-size:26px;font-weight:700;margin-bottom:16px;line-height:1.3; }
+    .stage-left p { font-size:15px;color:var(--muted);line-height:1.8;margin-bottom:24px; }
+    .avail-badge { display:inline-flex;align-items:center;gap:8px;padding:10px 20px;background:rgba(34,211,164,.1);border:1px solid rgba(34,211,164,.3);border-radius:999px;color:var(--green);font-size:13px;font-weight:500; }
+    .stage-right { display:flex;flex-direction:column;gap:14px; }
+    .stage-item { display:flex;gap:16px;align-items:flex-start;padding:16px 20px;background:rgba(255,255,255,.03);border-radius:12px;border:1px solid var(--border);transition:border-color .2s; }
+    .stage-item:hover { border-color:rgba(0,229,255,.2); }
+    .stage-item-icon { font-size:20px;flex-shrink:0;width:40px;height:40px;display:flex;align-items:center;justify-content:center; }
+    .stage-item-label { font-size:11px;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);margin-bottom:3px; }
+    .stage-item-value { font-size:14px;color:var(--text);font-weight:500; }
+
+    /* ── CONTACT ── */
+    #contact { background:var(--surface); }
+    .contact-grid { display:grid;grid-template-columns:1fr 1fr;gap:80px; }
+    .contact-links { display:flex;flex-direction:column;gap:12px;margin-top:8px; }
+    .contact-link { display:flex;align-items:center;gap:16px;text-decoration:none;color:var(--text);padding:18px 22px;background:var(--surface2);border:1px solid var(--border);border-radius:14px;transition:all .22s; }
+    .contact-link:hover { border-color:var(--link-color,var(--cyan));transform:translateX(6px);background:rgba(255,255,255,.03); }
+    .contact-link:nth-child(1){--link-color:var(--cyan)}
+    .contact-link:nth-child(2){--link-color:var(--purple)}
+    .contact-link:nth-child(3){--link-color:var(--pink)}
+    .cl-icon { width:42px;height:42px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0; }
+    .cl-cyan{background:rgba(0,229,255,.1)}
+    .cl-purple{background:rgba(168,85,247,.1)}
+    .cl-pink{background:rgba(244,114,182,.1)}
+    .cl-text { font-size:14px;font-weight:500; }
+    .cl-sub { font-size:12px;color:var(--muted);margin-top:2px; }
+    .contact-form { display:flex;flex-direction:column;gap:16px; }
+    .form-group { display:flex;flex-direction:column;gap:8px; }
+    .form-group label { font-size:11px;text-transform:uppercase;letter-spacing:.1em;color:var(--muted); }
+    .form-group input,.form-group textarea { background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:13px 16px;font-family:'Geist',sans-serif;font-size:14px;color:var(--text);outline:none;transition:border-color .22s,box-shadow .22s;resize:none; }
+    .form-group input:focus,.form-group textarea:focus { border-color:rgba(0,229,255,.4);box-shadow:0 0 0 3px rgba(0,229,255,.06); }
+    .form-row { display:grid;grid-template-columns:1fr 1fr;gap:14px; }
+    .form-submit { background:linear-gradient(135deg,var(--cyan),var(--purple));color:#000;border:none;padding:14px 28px;font-family:'Geist',sans-serif;font-size:13px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;cursor:pointer;border-radius:999px;transition:opacity .2s,transform .2s;align-self:flex-start; }
+    .form-submit:hover { opacity:.88;transform:scale(1.02); }
+
+    /* ── FOOTER ── */
+    footer { background:var(--bg);border-top:1px solid var(--border);padding:28px 60px;display:flex;justify-content:space-between;align-items:center;position:relative;z-index:1; }
+    footer p { font-size:13px;color:var(--muted); }
+    .footer-grad { background:linear-gradient(90deg,var(--cyan),var(--purple),var(--pink));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;font-weight:600; }
+
+    /* ── ANIMATIONS ── */
+    .fade-up { opacity:0;transform:translateY(32px);transition:opacity .6s ease,transform .6s ease; }
+    .fade-up.visible { opacity:1;transform:translateY(0); }
+
+    /* ── LANG TRANSITION ── */
+    [data-i18n] { transition: opacity .18s ease; }
+    .lang-switching [data-i18n] { opacity: 0; }
+
+    /* ── RESPONSIVE ── */
+    @media(max-width:900px){
+      nav{padding:18px 24px}
+      .nav-links{display:none}
+      .hero{padding:100px 24px 80px}
+      .hero-stats{position:static;margin-top:48px;flex-direction:row;gap:32px}
+      .scroll-hint{display:none}
+      section{padding:72px 24px}
+      .about-grid,.skills-grid,.contact-grid{grid-template-columns:1fr;gap:40px}
+      .skills-grid{grid-template-columns:1fr 1fr}
+      .stage-grid{grid-template-columns:1fr;gap:32px}
+      .stage-hero{padding:32px 24px}
+      .form-row{grid-template-columns:1fr}
+      footer{flex-direction:column;gap:8px;text-align:center;padding:20px 24px}
+    }
+    /* ── MODAL ── */
+.project-row { cursor: pointer; }
+.modal-overlay {
+  position: fixed; inset: 0; z-index: 2000;
+  background: rgba(0,0,0,0.75);
+  backdrop-filter: blur(12px);
+  display: flex; align-items: center; justify-content: center;
+  padding: 24px;
+  opacity: 0; pointer-events: none;
+  transition: opacity .3s ease;
+}
+.modal-overlay.open { opacity: 1; pointer-events: all; }
+.modal {
+  background: var(--surface);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 20px;
+  width: 100%; max-width: 640px;
+  max-height: 88vh;
+  overflow-y: auto;
+  transform: translateY(24px) scale(0.97);
+  transition: transform .3s ease;
+  position: relative;
+}
+.modal-overlay.open .modal { transform: translateY(0) scale(1); }
+.modal-img {
+  width: 100%; height: 220px;
+  object-fit: cover;
+  border-radius: 18px 18px 0 0;
+  display: block;
+}
+.modal-img-placeholder {
+  width: 100%; height: 220px;
+  background: linear-gradient(135deg, var(--surface2), #2a2a36);
+  border-radius: 18px 18px 0 0;
+  display: flex; align-items: center; justify-content: center;
+  flex-direction: column; gap: 10px;
+  color: var(--muted); font-size: 13px; letter-spacing: .06em;
+}
+.modal-img-placeholder span { font-size: 36px; }
+.modal-body { padding: 32px; }
+.modal-tag {
+  font-size: 11px; letter-spacing: .12em; text-transform: uppercase;
+  color: var(--cyan); margin-bottom: 10px; display: block;
+}
+.modal-title {
+  font-family: 'Syne', sans-serif; font-size: 24px; font-weight: 800;
+  margin-bottom: 16px; line-height: 1.2;
+}
+.modal-desc {
+  font-size: 14.5px; color: #b0b0c8; line-height: 1.8; margin-bottom: 24px;
+}
+.modal-highlights { display: flex; flex-direction: column; gap: 10px; margin-bottom: 24px; }
+.modal-highlight {
+  display: flex; align-items: flex-start; gap: 12px;
+  font-size: 13.5px; color: var(--muted); line-height: 1.6;
+}
+.modal-highlight::before { content: '→'; color: var(--cyan); flex-shrink: 0; font-weight: 700; }
+.modal-tags { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 28px; }
+.modal-close {
+  position: absolute; top: 16px; right: 16px;
+  width: 36px; height: 36px; border-radius: 50%;
+  background: rgba(0,0,0,0.5); border: 1px solid var(--border);
+  color: var(--muted); font-size: 18px; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: background .2s, color .2s; line-height: 1;
+}
+.modal-close:hover { background: rgba(255,255,255,0.1); color: var(--text); }
+/* ── TIMELINE ── */
+#parcours { 
+  background: var(--bg);
+  padding: 100px 60px;
+}
+.timeline {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  padding-left: 32px;
+  max-width: 1080px;
+  margin: 0 auto;
+}
+.timeline::before {
+  content: '';
+  position: absolute;
+  left: 0; top: 8px; bottom: 8px;
+  width: 1px;
+  background: linear-gradient(180deg, var(--cyan), var(--purple), var(--pink), transparent);
+}
+.tl-item {
+  position: relative;
+  padding: 0 0 48px 40px;
+  opacity: 0;
+  transform: translateX(-16px);
+  transition: opacity 0.5s ease, transform 0.5s ease;
+}
+.tl-item.tl-visible {
+  opacity: 1;
+  transform: translateX(0);
+}
+.tl-item:last-child { padding-bottom: 0; }
+.tl-dot {
+  position: absolute;
+  left: -6px; top: 6px;
+  width: 13px; height: 13px;
+  border-radius: 50%;
+  border: 2px solid var(--dot-color, var(--cyan));
+  background: var(--bg);
+  transition: transform 0.2s;
+}
+.tl-item:hover .tl-dot {
+  transform: scale(1.4);
+  background: var(--dot-color, var(--cyan));
+}
+.tl-date {
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--dot-color, var(--cyan));
+  margin-bottom: 6px;
+}
+.tl-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 22px 26px;
+  transition: border-color 0.2s, transform 0.2s;
+}
+.tl-item:hover .tl-card {
+  border-color: var(--dot-color, var(--cyan));
+  transform: translateX(6px);
+}
+.tl-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+.tl-emoji { font-size: 20px; }
+.tl-title {
+  font-family: 'Syne', sans-serif;
+  font-size: 16px;
+  font-weight: 700;
+}
+.tl-subtitle {
+  font-size: 13px;
+  color: var(--muted);
+  margin-bottom: 10px;
+}
+.tl-desc {
+  font-size: 13.5px;
+  color: #9090a8;
+  line-height: 1.7;
+}
+.tl-badge {
+  display: inline-block;
+  font-size: 10.5px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-weight: 500;
+  margin-top: 10px;
+  background: rgba(0,229,255,0.08);
+  color: var(--dot-color, var(--cyan));
+  border: 1px solid var(--dot-color, var(--cyan));
+  opacity: 0.7;
+}
+/* ── SCROLL INDICATOR ── */
+.scroll-indicator {
+  position: fixed;
+  top: 0; left: 0;
+  height: 2px;
+  width: 0%;
+  background: linear-gradient(90deg, var(--cyan), var(--purple), var(--pink));
+  z-index: 9999;
+  transition: width 0.05s linear;
+}
+/* ── THEME TOGGLE ── */
+.theme-btn {
+  width: 38px; height: 38px;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: var(--surface2);
+  color: var(--text);
+  font-size: 16px;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: all 0.2s;
+  flex-shrink: 0;
+}
+.theme-btn:hover {
+  border-color: var(--cyan);
+  transform: rotate(20deg) scale(1.1);
+}
+/* ── CARTE ── */
+#carte { background: var(--surface); }
+#map {
+  width: 100%;
+  height: 480px;
+  border-radius: 20px;
+  border: 1px solid var(--border);
+  margin-top: 40px;
+  z-index: 1;
+}
+.map-subtitle {
+  font-size: 15px;
+  color: var(--muted);
+  margin-top: -40px;
+  margin-bottom: 0;
+  max-width: 520px;
+}
+
+/* Popups Leaflet customisés */
+.leaflet-popup-content-wrapper {
+  background: var(--surface2) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: 12px !important;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.4) !important;
+  color: var(--text) !important;
+}
+.leaflet-popup-tip { background: var(--surface2) !important; }
+.leaflet-popup-content { margin: 16px 20px !important; }
+.popup-title {
+  font-family: 'Syne', sans-serif;
+  font-size: 15px;
+  font-weight: 700;
+  margin-bottom: 6px;
+  color: var(--text);
+}
+.popup-desc {
+  font-size: 13px;
+  color: var(--muted);
+  line-height: 1.6;
+  margin-bottom: 10px;
+}
+.popup-tag {
+  display: inline-block;
+  font-size: 10.5px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-weight: 500;
+  background: rgba(0,229,255,0.1);
+  color: var(--cyan);
+  border: 1px solid rgba(0,229,255,0.3);
+}
+
+/* Correction dark mode carte */
+.leaflet-tile { filter: brightness(0.85) saturate(0.9); }
+body.light .leaflet-tile { filter: none; }
+.leaflet-container { background: var(--surface) !important; }
+/* ── BOUTONS FLOTTANTS ── */
+.floating-btns {
+  position: fixed;
+  bottom: 32px; right: 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  z-index: 500;
+}
+.float-btn {
+  width: 46px; height: 46px;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 18px;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: all 0.25s;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+  opacity: 0;
+  transform: translateY(12px);
+  pointer-events: none;
+}
+.float-btn.visible {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: all;
+}
+.float-btn:hover {
+  transform: translateY(-3px) scale(1.08);
+  border-color: var(--cyan);
+  box-shadow: 0 0 20px rgba(0,229,255,0.25);
+}
+.float-btn.cv-btn:hover { border-color: var(--purple); box-shadow: 0 0 20px rgba(168,85,247,0.25); }
+.float-btn-tooltip {
+  position: absolute;
+  right: 54px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text);
+  font-size: 12px;
+  padding: 5px 12px;
+  border-radius: 8px;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s;
+}
+.float-btn:hover .float-btn-tooltip { opacity: 1; }
+.projects-hint {
+  font-size: 13px;
+  color: var(--muted);
+  margin-top: -40px;
+  margin-bottom: 48px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  animation: bounce-hint 2s ease-in-out infinite;
+}
+@keyframes bounce-hint {
+  0%, 100% { transform: translateX(0); }
+  50% { transform: translateX(6px); }
+}
+  </style>
+</head>
+<body>
+<div class="scroll-indicator" id="scrollIndicator"></div>
+<div class="cursor" id="cursor"></div>
+<div class="cursor-ring" id="cursorRing"></div>
+
+<div class="mesh">
+  <div class="mesh-blob"></div>
+  <div class="mesh-blob"></div>
+  <div class="mesh-blob"></div>
+</div>
+
+<!-- NAV -->
+<nav>
+  <a href="#" class="nav-logo">Noah<span class="accent">.</span></a>
+  <ul class="nav-links">
+    <li><a href="#apropos" data-i18n="nav_about">À propos</a></li>
+    <li><a href="#competences" data-i18n="nav_skills">Compétences</a></li>
+    <li><a href="#projets" data-i18n="nav_projects">Projets</a></li>
+    <li><a href="#stage" data-i18n="nav_internship">Stage</a></li>
+    <li><a href="#contact" data-i18n="nav_contact">Contact</a></li>
+  </ul>
+  <div class="lang-switcher">
+    <button class="lang-btn active" onclick="setLang('fr')">FR</button>
+    <button class="lang-btn" onclick="setLang('en')">EN</button>
+    <button class="lang-btn" onclick="setLang('es')">ES</button>
+  </div>
+  <button class="theme-btn" id="themeBtn" onclick="toggleTheme()" title="Changer le thème">🌙</button>
+</nav>
+
+<!-- HERO -->
+<section class="hero" id="accueil">
+  <div class="hero-inner">
+    <div class="hero-badge fade-up">
+      <div class="badge-dot"></div>
+      <span data-i18n="hero_badge">Disponible — Stage à l'international Août–Nov 2026</span>
+    </div>
+    <h1 class="fade-up" style="transition-delay:.1s">
+      <span class="line1">Noah</span>
+      <span class="line2">Bellanger</span>
+    </h1>
+    <p class="hero-desc fade-up" style="transition-delay:.2s" data-i18n="hero_desc">
+      Étudiant en 2ème année de <strong>FISA Mécanique &amp; Transport</strong> à l'UTBM. Passionné par la conception, la simulation et les systèmes mécaniques complexes. Je cherche une opportunité à l'international pour repousser mes limites.
+    </p>
+    <div class="hero-cta fade-up" style="transition-delay:.3s">
+      <a href="#contact" class="btn-glow">✦ <span data-i18n="hero_cta_contact">Me contacter</span></a>
+      <a href="#projets" class="btn-ghost"><span data-i18n="hero_cta_projects">Voir mes projets</span> →</a>
+    </div>
+<div class="hero-stats fade-up" style="transition-delay:.4s">
+  <div class="stat">
+    <div class="stat-num" data-target="2" data-suffix="A">0A</div>
+    <div class="stat-label" data-i18n="stat_year">Année UTBM</div>
+  </div>
+  <div class="stat">
+    <div class="stat-num" data-target="3" data-suffix="">0</div>
+    <div class="stat-label" data-i18n="stat_months">Mois de stage</div>
+  </div>
+  <div class="stat">
+    <div class="stat-num" data-target="∞" data-suffix="">0</div>
+    <div class="stat-label" data-i18n="stat_destinations">Destinations</div>
+  </div>
+</div>
+  </div>
+  <div class="scroll-hint">
+    <div class="scroll-line"></div>
+    <span data-i18n="scroll">Scroll</span>
+  </div>
+</section>
+
+<!-- À PROPOS -->
+<section id="apropos">
+  <div class="fade-up">
+    <span class="section-tag">// 01</span>
+    <h2 class="section-title"><span data-i18n="about_title">Qui suis-je</span> <span class="hl">?</span></h2>
+  </div>
+  <div class="about-grid">
+    <div class="photo-wrapper fade-up">
+      <div class="photo-card">
+        <img src="pdp.jpg" style="width:100%;height:100%;object-fit:cover;border-radius:inherit"/>
+          <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+          <circle cx="12" cy="7" r="4"/>
+        </svg>
+        <span data-i18n="photo_placeholder">Votre photo ici</span>
+      </div>
+    </div>
+    <div class="about-content fade-up" style="transition-delay:.15s">
+      <p data-i18n="about_p1">Je suis <strong>Noah Bellanger</strong>, étudiant en 2e année de génie mécanique à l'<strong>UTBM</strong> (Belfort-Montbéliard), spécialisé en <strong>Génie Mécanique et Transports</strong>. Mon parcours en alternance m'expose à des problématiques industrielles réelles dès la formation.</p>
+      <p data-i18n="about_p2">Curieux et méthodique, je me passionne pour la conception de systèmes mécaniques, le dimensionnement de transmissions et la simulation structurale. J'ai notamment travaillé sur des projets de motoréducteurs et de calcul de structures.</p>
+      <p data-i18n="about_p3">Ouverts aux défis techniques comme humains, je cherche à acquérir une expérience internationale significative dans tout domaine du génie mécanique.</p>
+      <div class="chips">
+        <span class="chip chip-cyan">🎓 UTBM</span>
+        <span class="chip chip-purple">⚙️ <span data-i18n="chip_work_study">Alternance</span></span>
+        <span class="chip chip-pink">🌍 <span data-i18n="chip_international">International</span></span>
+        <span class="chip chip-green">🏋️ Fitness</span>
+        <span class="chip chip-cyan">🎵 <span data-i18n="chip_music">Musique</span></span>
+        <span class="chip chip-purple">📐 CAO</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- COMPÉTENCES -->
+<section id="competences">
+  <div class="fade-up">
+    <span class="section-tag">// 02</span>
+    <h2 class="section-title"><span data-i18n="skills_title">Mon stack</span> <span class="hl-pink" data-i18n="skills_title2">technique</span></h2>
+  </div>
+  <div class="skills-grid">
+    <div class="skill-card fade-up">
+      <span class="skill-emoji">🖥️</span>
+      <h3 data-i18n="skill1_title">Conception & CAO</h3>
+      <div class="skill-tags">
+        <span class="stag">CATIA V5</span><span class="stag">Creo7</span><span class="stag">TopSolid</span><span class="stag" data-i18n="skill1_t4">Dessin tech.</span><span class="stag" data-i18n="skill1_t5">Tolérancement</span>
+      </div>
+    </div>
+    <div class="skill-card fade-up" style="transition-delay:.08s">
+      <span class="skill-emoji">⚙️</span>
+      <h3 data-i18n="skill2_title">Mécanique & Calcul</h3>
+      <div class="skill-tags">
+        <span class="stag" data-i18n="skill2_t1">RDM</span><span class="stag" data-i18n="skill2_t2">Thermodynamique</span><span class="stag" data-i18n="skill2_t3">Cinématique</span><span class="stag" data-i18n="skill2_t4">Mécanique des fluides</span><span class="stag" data-i18n="skill2_t5">Dimensionnement</span>
+      </div>
+    </div>
+    <div class="skill-card fade-up" style="transition-delay:.16s">
+      <span class="skill-emoji">💻</span>
+      <h3 data-i18n="skill3_title">Outils numériques</h3>
+      <div class="skill-tags">
+        <span class="stag">Pack office</span><span class="stag">Excel / VBA</span><span class="stag">RDM 7</span><span class="stag" data-i18n="skill3_t4">Simulation</span>
+      </div>
+    </div>
+    <div class="skill-card fade-up" style="transition-delay:.24s">
+      <span class="skill-emoji">🔬</span>
+      <h3 data-i18n="skill4_title">Science des matériaux</h3>
+      <div class="skill-tags">
+        <span class="stag" data-i18n="skill4_t1">Cristallographie</span><span class="stag" data-i18n="skill4_t2">Phases</span><span class="stag" data-i18n="skill4_t3">Dislocations</span><span class="stag" data-i18n="skill4_t4">Traitements ther.</span>
+      </div>
+    </div>
+    <div class="skill-card fade-up" style="transition-delay:.32s">
+      <span class="skill-emoji">🤝</span>
+      <h3 data-i18n="skill5_title">Soft Skills</h3>
+      <div class="skill-tags">
+        <span class="stag" data-i18n="skill5_t1">Rigueur</span><span class="stag" data-i18n="skill5_t2">Travail d'équipe</span><span class="stag" data-i18n="skill5_t3">Gestion de projet</span><span class="stag" data-i18n="skill5_t4">Adaptabilité</span>
+      </div>
+    </div>
+    <div class="skill-card fade-up" style="transition-delay:.4s">
+      <span class="skill-emoji">🌐</span>
+      <h3 data-i18n="skill6_title">International</h3>
+      <div class="skill-tags">
+        <span class="stag" data-i18n="skill6_t1">Anglais technique</span><span class="stag" data-i18n="skill6_t2">Rédaction pro</span><span class="stag" data-i18n="skill6_t3">Bilingue FR/EN</span>
+      </div>
+    </div>
+  </div>
+</section>
+    <!-- TIMELINE -->
+<section id="parcours">
+  <div class="fade-up">
+    <span class="section-tag">// 02.5</span>
+    <h2 class="section-title"><span data-i18n="timeline_title">Mon</span> <span class="hl" data-i18n="timeline_title2">parcours</span></h2>
+  </div>
+
+  <div class="timeline">
+
+    <div class="tl-item" style="--dot-color: var(--cyan)">
+      <div class="tl-dot"></div>
+      <div class="tl-date" data-i18n="tl1_date">2021 — 2023</div>
+      <div class="tl-card">
+        <div class="tl-header">
+          <span class="tl-emoji">🎓</span>
+          <span class="tl-title" data-i18n="tl1_title">BUT Génie Mécanique et Productique</span>
+        </div>
+        <div class="tl-subtitle" data-i18n="tl1_sub">IUT de Rennes · Bac+3</div>
+        <div class="tl-desc" data-i18n="tl1_desc">Formation en conception mécanique, procédés de fabrication (fraisage, tournage, découpe laser) et outils CAO. Projets pratiques en atelier et bureaux d'études.</div>
+        <span class="tl-badge" data-i18n="tl1_badge">Diplômé</span>
+      </div>
+    </div>
+
+    <div class="tl-item" style="--dot-color: var(--green)">
+      <div class="tl-dot"></div>
+      <div class="tl-date" data-i18n="tl2_date">2023 — Stage</div>
+      <div class="tl-card">
+        <div class="tl-header">
+          <span class="tl-emoji">🏭</span>
+          <span class="tl-title" data-i18n="tl2_title">Stage — CNH Industrial</span>
+        </div>
+        <div class="tl-subtitle" data-i18n="tl2_sub">Conception d'un système de lubrification automatique</div>
+        <div class="tl-desc" data-i18n="tl2_desc">Conception et dimensionnement d'un système de lubrification automatique pour équipements agricoles. Travail en bureau d'études, modélisation CATIA V5, plans de définition.</div>
+        <span class="tl-badge" data-i18n="tl2_badge">Expérience terrain</span>
+      </div>
+    </div>
+
+    <div class="tl-item" style="--dot-color: var(--purple)">
+      <div class="tl-dot"></div>
+      <div class="tl-date" data-i18n="tl3_date">2023 — Aujourd'hui</div>
+      <div class="tl-card">
+        <div class="tl-header">
+          <span class="tl-emoji">⚙️</span>
+          <span class="tl-title" data-i18n="tl3_title">Alternance — AKKODIS</span>
+        </div>
+        <div class="tl-subtitle" data-i18n="tl3_sub">Ingénierie bureau d'études · Conception outillage BIW</div>
+        <div class="tl-desc" data-i18n="tl3_desc">Conception d'outillages carrosserie en blanc (BIW) sous CATIA V5, automatisation de tâches par macros VBA, participation à des réunions techniques internationales en anglais.</div>
+        <span class="tl-badge" data-i18n="tl3_badge">En cours</span>
+      </div>
+    </div>
+
+    <div class="tl-item" style="--dot-color: var(--pink)">
+      <div class="tl-dot"></div>
+      <div class="tl-date" data-i18n="tl4_date">2023 — Aujourd'hui</div>
+      <div class="tl-card">
+        <div class="tl-header">
+          <span class="tl-emoji">🏫</span>
+          <span class="tl-title" data-i18n="tl4_title">UTBM — Génie Mécanique & Transport</span>
+        </div>
+        <div class="tl-subtitle" data-i18n="tl4_sub">Université de Technologie de Belfort-Montbéliard · 2e année</div>
+        <div class="tl-desc" data-i18n="tl4_desc">Formation d'ingénieur en alternance spécialisée GM-TR. Mécanique avancée, thermodynamique, science des matériaux, mathématiques appliquées, économie.</div>
+        <span class="tl-badge" data-i18n="tl4_badge">En cours</span>
+      </div>
+    </div>
+
+    <div class="tl-item" style="--dot-color: var(--yellow)">
+      <div class="tl-dot"></div>
+      <div class="tl-date" data-i18n="tl5_date">Août 2026</div>
+      <div class="tl-card">
+        <div class="tl-header">
+          <span class="tl-emoji">🌍</span>
+          <span class="tl-title" data-i18n="tl5_title">Stage international — à venir</span>
+        </div>
+        <div class="tl-subtitle" data-i18n="tl5_sub">Europe · Amériques · Asie</div>
+        <div class="tl-desc" data-i18n="tl5_desc">À la recherche d'une opportunité de 3 mois à l'étranger en génie mécanique. Conception, R&D, simulation, transport — toutes propositions bienvenues !</div>
+        <span class="tl-badge" data-i18n="tl5_badge">🔍 En recherche</span>
+      </div>
+    </div>
+
+  </div>
+</section>
+<!-- PROJETS -->
+<section id="projets">
+  <div class="fade-up">
+    <span class="section-tag">// 03</span>
+    <h2 class="section-title"><span data-i18n="projects_title">Ce que j'ai</span> <span class="hl-green" data-i18n="projects_title2">réalisé</span></h2>
+  </div>
+  <p class="projects-hint fade-up" data-i18n="projects_hint">👆 Clique sur un projet pour voir les détails</p>
+  <div class="projects-list">
+    <div class="project-row fade-up" onclick="openModal(0)">
+      <div class="proj-num">01 —</div>
+      <div class="proj-info">
+        <h3 data-i18n="proj1_title">Plateforme motorisée rotative</h3>
+        <p data-i18n="proj1_desc">Dimensionnement complet : moteur DC 24V, motoréducteur à vis sans fin (Transtecno CM026), couronne d'orientation. Calcul d'inertie, validation des couples, sélection du pignon.</p>
+        <div class="proj-tags"><span class="proj-tag pt-cyan">CAO</span><span class="proj-tag pt-purple" data-i18n="tag_sizing">Dimensionnement</span><span class="proj-tag pt-pink" data-i18n="tag_work">Travail d'équipe</span></div>
+      </div>
+      <div class="proj-arrow">Voir plus →</div>
+    </div>
+    <div class="project-row fade-up" style="transition-delay:.1s" onclick="openModal(1)">
+      <div class="proj-num">02 —</div>
+      <div class="proj-info">
+        <h3 data-i18n="proj2_title">Suivi d'entraînement Excel / VBA</h3>
+        <p data-i18n="proj2_desc">Système de tracking sportif automatisé avec macros VBA : saisie guidée, correction des données, suivi d'objectifs, progression des charges selon les performances.</p>
+        <div class="proj-tags"><span class="proj-tag pt-green">Excel</span><span class="proj-tag pt-cyan">VBA</span><span class="proj-tag pt-purple" data-i18n="tag_automation">Automatisation</span></div>
+      </div>
+      <div class="proj-arrow">Voir plus →</div>
+    </div>
+    <div class="project-row fade-up" style="transition-delay:.2s" onclick="openModal(2)">
+      <div class="proj-num">03 —</div>
+      <div class="proj-info">
+        <h3 data-i18n="proj3_title">Calcul de poutres & méthodes énergétiques</h3>
+        <p data-i18n="proj3_desc">Déflexion par méthode de Castigliano et charges fictives. Application aux structures isostatiques et hyperstatiques, calcul des contraintes et déplacements.</p>
+        <div class="proj-tags"><span class="proj-tag pt-pink">RDM</span><span class="proj-tag pt-cyan" data-i18n="tag_simulation">Simulation</span><span class="proj-tag pt-purple" data-i18n="tag_academic">Académique</span></div>
+      </div>
+      <div class="proj-arrow">Voir plus →</div>
+    </div>
+    <div class="project-row fade-up" style="transition-delay:.3s" onclick="openModal(3)">
+      <div class="proj-num">04 —</div>
+      <div class="proj-info">
+        <h3 data-i18n="proj4_title">Analyse de transformations de phase</h3>
+        <p data-i18n="proj4_desc">Migration de lacunes, cinétique de nucléation et dislocations dans les métaux. Diagrammes TTT/CCT pour la prédiction des microstructures.</p>
+        <div class="proj-tags"><span class="proj-tag pt-green" data-i18n="tag_materials">Matériaux</span><span class="proj-tag pt-cyan">Microstructures</span><span class="proj-tag pt-purple" data-i18n="tag_academic">Académique</span></div>
+      </div>
+      <div class="proj-arrow">Voir plus →</div>
+    </div>
+  </div>
+</section>
+
+<!-- STAGE -->
+<section id="stage">
+  <div class="fade-up">
+    <span class="section-tag">// 04</span>
+    <h2 class="section-title"><span data-i18n="internship_title">Je recherche un</span> <span class="hl" data-i18n="internship_title2">stage</span></h2>
+  </div>
+  <div class="stage-hero fade-up">
+    <div class="stage-grid">
+      <div class="stage-left">
+        <h3 data-i18n="internship_h3">Ouvert à toute opportunité internationale en génie mécanique</h3>
+        <p data-i18n="internship_p1">Dans le cadre de ma formation en alternance à l'UTBM, je recherche un stage de 3 mois à l'étranger. Polyvalent et motivé, j'accueille toute proposition en conception, R&amp;D, simulation, maintenance ou transport.</p>
+        <p data-i18n="internship_p2">Autonome, rigoureux et adaptable, je m'intègre rapidement dans un environnement exigeant et multiculturel.</p>
+        <span class="avail-badge">
+          <span style="width:8px;height:8px;background:var(--green);border-radius:50%;display:inline-block;animation:blink 1.4s infinite"></span>
+          <span data-i18n="avail_text">Disponible dès fin août 2026</span>
+        </span>
+      </div>
+      <div class="stage-right">
+        <div class="stage-item">
+          <div class="stage-item-icon">📅</div>
+          <div><div class="stage-item-label" data-i18n="si_period_label">Période</div><div class="stage-item-value" data-i18n="si_period_val">Fin août → Fin novembre 2026 (≈ 3 mois)</div></div>
+        </div>
+        <div class="stage-item">
+          <div class="stage-item-icon">🌍</div>
+          <div><div class="stage-item-label" data-i18n="si_dest_label">Destinations</div><div class="stage-item-value" data-i18n="si_dest_val">Europe · Amériques · Asie — tout pays envisagé</div></div>
+        </div>
+        <div class="stage-item">
+          <div class="stage-item-icon">🔧</div>
+          <div><div class="stage-item-label" data-i18n="si_fields_label">Domaines</div><div class="stage-item-value" data-i18n="si_fields_val">Conception · R&amp;D · Simulation · Transport · Industriel</div></div>
+        </div>
+        <div class="stage-item">
+          <div class="stage-item-icon">💬</div>
+          <div><div class="stage-item-label" data-i18n="si_lang_label">Langues</div><div class="stage-item-value" data-i18n="si_lang_val">Français (natif) · Anglais (technique)</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+<!-- CARTE -->
+<section id="carte">
+  <div class="fade-up">
+    <span class="section-tag">// 04.5</span>
+    <h2 class="section-title"><span data-i18n="map_title">Mes destinations</span> <span class="hl" data-i18n="map_title2">cibles</span></h2>
+    <p class="map-subtitle fade-up" data-i18n="map_subtitle">Les régions du monde où je cherche mon stage — clique sur un marqueur pour en savoir plus.</p>
+  </div>
+  <div class="fade-up" id="map"></div>
+</section>
+<!-- CONTACT -->
+<section id="contact">
+  <div class="fade-up">
+    <span class="section-tag">// 05</span>
+    <h2 class="section-title"><span data-i18n="contact_title">Travaillons</span> <span class="hl-pink" data-i18n="contact_title2">ensemble</span></h2>
+  </div>
+  <div class="contact-grid">
+    <div class="fade-up">
+      <p style="color:var(--muted);font-size:15px;line-height:1.8;margin-bottom:28px;" data-i18n="contact_intro">Une offre de stage, une question, ou simplement envie d'échanger ? Écrivez-moi, je réponds sous 24h.</p>
+      <div class="contact-links">
+        <a href="mailto:noah.bellanger.1601@gmail.com" class="contact-link">
+          <div class="cl-icon cl-cyan">📧</div>
+          <div><div class="cl-text">noah.bellanger.1601@gmail.com</div><div class="cl-sub" data-i18n="cl_email_sub">Email professionnel</div></div>
+        </a>
+        <a href="https://www.linkedin.com/in/noah-bellanger-b54b1a251" target="_blank" class="contact-link">
+          <div class="cl-icon cl-purple">💼</div>
+          <div><div class="cl-text">LinkedIn</div><div class="cl-sub" data-i18n="cl_linkedin_sub">Profil professionnel</div></div>
+        </a>
+        <a href="CV_Noah_Bellanger_FR.pdf" id="cv-link" download class="contact-link">
+          <div class="cl-icon cl-pink">📄</div>
+          <div><div class="cl-text" data-i18n="cl_cv_text">Télécharger mon CV</div><div class="cl-sub">PDF</div></div>
+        </a>
+      </div> 
+    </div>
+    <div class="fade-up" style="transition-delay:.15s">
+      <form class="contact-form" action="https://formspree.io/f/mdabkkpw" method="POST">
+  <div class="form-row">
+    <div class="form-group"><label data-i18n="form_firstname">Prénom</label><input type="text" name="prenom" data-i18n-placeholder="form_firstname_ph"/></div>
+    <div class="form-group"><label data-i18n="form_lastname">Nom</label><input type="text" name="nom" data-i18n-placeholder="form_lastname_ph"/></div>
+  </div>
+  <div class="form-group"><label data-i18n="form_email">Email</label><input type="email" name="email" data-i18n-placeholder="form_email_ph"/></div>
+  <div class="form-group"><label data-i18n="form_company">Entreprise</label><input type="text" name="entreprise" data-i18n-placeholder="form_company_ph"/></div>
+  <div class="form-group"><label data-i18n="form_message">Message</label><textarea rows="4" name="message" data-i18n-placeholder="form_message_ph"></textarea></div>
+  <button type="submit" class="form-submit">✦ <span data-i18n="form_submit">Envoyer</span></button>
+</form>
+    </div>
+  </div>
+</section>
+<!-- MODAL -->
+<div class="modal-overlay" id="modalOverlay" onclick="handleOverlayClick(event)">
+  <div class="modal" id="modal">
+    <button class="modal-close" onclick="closeModal()">✕</button>
+    <div id="modal-image-area"></div>
+    <div class="modal-body">
+      <span class="modal-tag" id="modal-tag"></span>
+      <h2 class="modal-title" id="modal-title"></h2>
+      <p class="modal-desc" id="modal-desc"></p>
+      <div class="modal-highlights" id="modal-highlights"></div>
+      <div class="modal-tags" id="modal-tags"></div>
+    </div>
+  </div>
+</div>
+<footer>
+  <p>© 2026 <span class="footer-grad">Noah Bellanger</span></p>
+  <p style="font-size:12px;" data-i18n="footer_sub">UTBM · Génie Mécanique & Transport · Belfort, France</p>
+</footer>
+
+<script>
+  // Sécurité au chargement
+document.body.style.overflow = '';
+// ── TRANSLATIONS ──────────────────────────────────────────────
+const translations = {
+  fr: {
+    nav_about: "À propos", nav_skills: "Compétences", nav_projects: "Projets",
+    nav_internship: "Stage", nav_contact: "Contact",
+    hero_badge: "Disponible — Stage à l'international Août–Nov 2026",
+    hero_desc: `Étudiant commençant ma 2ème année de <strong>FISA Mécanique & Transport</strong> à l'UTBM. Passionné par la conception, la simulation et les systèmes mécaniques complexes. Je cherche une opportunité de stage à l'international pour repousser mes limites, gagner de l'expérience de travail à l'international et découvrir de nouvelles cultures.`,
+    hero_cta_contact: "Me contacter", hero_cta_projects: "Voir mes projets",
+    stat_year: "Année UTBM", stat_months: "Mois de stage", stat_destinations: "Destinations",
+    scroll: "Scroll",
+    about_title: "Qui suis-je",
+    photo_placeholder: "Votre photo ici",
+    about_p1: `Je suis <strong>Noah Bellanger</strong>, étudiant en 2e année de FISA à l'<strong>UTBM</strong> (Université de Technologie de Belfort-Montbéliard), spécialisé en <strong> Mécanique et Transports</strong>. Je suis actuellement en aternance en bureau d'études dans lequel je suis exposé à des problématiques industrielles complexes dans le domaine automobile.`,
+    about_p2: "Curieux et méthodique, je me passionne pour la conception de systèmes mécaniques, le dimensionnement des structures et la découverte des nouvelles technologies. J'ai notamment travaillé sur des projets de conception de moteur et de gestion de projets en équipe.",
+    about_p3: "Ouvert aux défis techniques comme humains, je cherche à acquérir une expérience internationale significative dans tout domaine de l'ingénierie mécanique.",
+    chip_work_study: "Alternance", chip_international: "International", chip_music: "Musique",
+    skills_title: "Mon stack", skills_title2: "technique",
+    skill1_title: "Conception & CAO", skill1_t4: "Dessin tech.", skill1_t5: "Tolérancement",
+    skill2_title: "Mécanique & Calcul", skill2_t1: "RDM", skill2_t2: "Thermodynamique", skill2_t3: "Cinématique", skill2_t5: "Dimensionnement",
+    skill3_title: "Outils numériques", skill3_t4: "Simulation",
+    skill4_title: "Science des matériaux", skill4_t1: "Cristallographie", skill4_t2: "Phases", skill4_t3: "Dislocations", skill4_t4: "Traitements ther.",
+    skill5_title: "Soft Skills", skill5_t1: "Rigueur", skill5_t2: "Travail d'équipe", skill5_t3: "Gestion de projet", skill5_t4: "Adaptabilité",
+    skill6_title: "International", skill6_t1: "Anglais technique", skill6_t2: "Rédaction pro", skill6_t3: "Compréhension et expression orale",
+    projects_title: "Ce que j'ai", projects_title2: "réalisé",
+    proj1_title: "Le VEGA Moteur", proj1_desc: "Conception complète : Création du cahier des charges, définitions des performences, design et fonctions modulables.",
+    proj2_title: "Suivi d'entraînement Excel / VBA", proj2_desc: "Système de tracking sportif automatisé avec macros VBA : saisie guidée, correction des données, suivi d'objectifs, progression des charges selon les performances.",
+    proj3_title: "Conception et dimensionnement d'un pont roulant", proj3_desc: "Conception d'un système de pont roulant à partir d'un cahier des charges. Réalisation selon plusieurs méthodes de calcul et de fabrication.",
+    proj4_title: "Analyse de la décarburation de l'acier", proj4_desc: "Études des effets, observation de l'évaporation de carbone. Essai de microdureté pour constatation sur plusieurs échantillons.",
+    tag_sizing: "Dimensionnement", tag_work: "Projet", tag_automation: "Automatisation",
+    tag_simulation: "Simulation", tag_academic: "Académique", tag_materials: "Matériaux",
+    internship_title: "Je recherche un", internship_title2: "stage",
+    internship_h3: "Ouvert à toute opportunité internationale en ingénierie mécanique",
+    internship_p1: "Dans le cadre de ma formation en alternance à l'UTBM, je recherche un stage de 3 mois à l'étranger. Polyvalent et motivé, j'accueille toute proposition en conception, R&D, simulation, maintenance ou transport.",
+    internship_p2: "Autonome, rigoureux et adaptable, je m'intègre rapidement dans un environnement exigeant et multiculturel.",
+    avail_text: "Disponible dès fin août 2026",
+    si_period_label: "Période", si_period_val: "Fin août → Fin novembre 2026 (≈ 3 mois)",
+    si_dest_label: "Destinations", si_dest_val: "Europe · Amériques · Asie — tout pays envisagé",
+    si_fields_label: "Domaines", si_fields_val: "Conception · R&D · Simulation · Transport · Industriel",
+    si_lang_label: "Langues", si_lang_val: "Français (natif) · Anglais (technique) · Espagnol (basique) · Russe (débutant)",
+    contact_title: "Travaillons", contact_title2: "ensemble",
+    contact_intro: "Une offre de stage, une question, ou simplement envie d'échanger ? Écrivez-moi, je réponds sous 24h.",
+    cl_email_sub: "Email professionnel", cl_linkedin_sub: "Profil professionnel", cl_cv_text: "Télécharger mon CV",
+    form_firstname: "Prénom", form_firstname_ph: "Jean",
+    form_lastname: "Nom", form_lastname_ph: "Dupont",
+    form_email: "Email", form_email_ph: "jean@entreprise.com",
+    form_company: "Entreprise", form_company_ph: "Nom de votre structure",
+    form_message: "Message", form_message_ph: "Décrivez votre offre de stage...",
+    form_submit: "Envoyer",
+    footer_sub: "UTBM · Mécanique & Transports · Belfort, France",
+    timeline_title: "Mon", timeline_title2: "parcours",
+    tl1_date: "2022 — 2025", tl1_title: "BUT Génie Mécanique et Productique", tl1_sub: "IUT de Rennes · Bac+3", tl1_desc: "Formation en conception mécanique, procédés de fabrication (fraisage, tournage, découpe laser) et outils CAO. Projets pratiques en atelier et bureaux d'études.", tl1_badge: "Diplômé",
+    tl2_date: "Janvier 2024 — Mars 2024 — Stage", tl2_title: "Stage — CNH Industrial (Coëx)", tl2_sub: "Conception d'un système de lubrification automatique", tl2_desc: "Conception et dimensionnement d'un système de lubrification automatique pour machines à vendanger. Travail en bureau d'études, modélisation CREO 7, plans de définition.", tl2_badge: "Expérience terrain",
+    tl3_date: "Septembre 2024 — Aujourd'hui", tl3_title: "Alternance — AKKODIS (Cesson-Sévigné)", tl3_sub: "Ingénierie bureau d'études · Conception outillage ferrage automobile", tl3_desc: "Conception d'outillages de ferrage pour ligne de production automobile sous CATIA V5, automatisation de tâches par macros VBA, participation à des réunions techniques internationales en anglais.", tl3_badge: "En cours",
+    tl4_date: "Septembre 2025 — Aujourd'hui", tl4_title: "UTBM — FISA Mécanique & Transport", tl4_sub: "Université de Technologie de Belfort-Montbéliard · 2e année", tl4_desc: "Formation d'ingénieur en alternance spécialisée M-TR. Mécanique des fluides, thermodynamique, science des matériaux, mathématiques appliquées, économie.", tl4_badge: "En cours",
+    tl5_date: "Août 2026", tl5_title: "Stage international — à venir", tl5_sub: "Europe · Amériques · Asie", tl5_desc: "À la recherche d'une opportunité de 3 mois à l'étranger en ingénierie mécanique. Conception, R&D, simulation, transport — toutes propositions bienvenues !", tl5_badge: "🔍 En recherche",
+    map_title: "Mes destinations", map_title2: "cibles",
+    map_subtitle: "Les régions du monde où je cherche mon stage — cliquez sur un marqueur pour en savoir plus.",
+    float_cv: "Télécharger le CV", float_top: "Retour en haut",
+    map_marker1_title: '📍 Belfort, France', map_marker1_desc: "Mon point de départ — actuellement en alternance à AKKODIS.", map_marker1_tag: '🏠 Domicile',
+    map_marker2_title: '🇪🇺 Europe', map_marker2_desc: "Allemagne, Espagne, Italie, Suisse, Pays-Bas... Toute destination européenne est envisagée.", map_marker2_tag: '✈️ Destination cible',
+    map_marker3_title: '🌎 Amériques', map_marker3_desc: "États-Unis, Canada, Mexique, Brésil... Ouvert à toute opportunité sur le continent américain.", map_marker3_tag: '✈️ Destination cible',
+    map_marker4_title: '🌏 Asie', map_marker4_desc: "Japon, Corée du Sud, Chine, Inde, Singapour... Le continent asiatique m'intéresse particulièrement.", map_marker4_tag: '✈️ Destination cible',
+    map_marker5_title: '🌍 Afrique & Moyen-Orient', map_marker5_desc: "Maroc, Émirats Arabes Unis, Afrique du Sud... Toute proposition est la bienvenue !", map_marker5_tag: '✈️ Destination cible',
+    projects_hint: "👆 Cliquez sur un projet pour voir les détails",
+  },
+
+  en: {
+    nav_about: "About", nav_skills: "Skills", nav_projects: "Projects",
+    nav_internship: "Internship", nav_contact: "Contact",
+    hero_badge: "Available — International Internship Aug–Nov 2026",
+    hero_desc: `2nd-year student in <strong>Mechanical Engineering & Transportation</strong> at UTBM. Passionate about design, simulation and complex mechanical systems. Looking for an international internship opportunity to push my limits, gain international work experience and discover new cultures.`,
+    hero_cta_contact: "Contact me", hero_cta_projects: "See my projects",
+    stat_year: "Year at UTBM", stat_months: "Internship months", stat_destinations: "Destinations",
+    scroll: "Scroll",
+    about_title: "Who am I",
+    photo_placeholder: "Your photo here",
+    about_p1: `I'm <strong>Noah Bellanger</strong>, a 2nd-year mechanical engineering student at <strong>UTBM</strong> (University of Belfort-Montbéliard), specializing in <strong>Mechanical Engineering and Transportation</strong>. I'm currently in an apprenticeship, where I'm exposed to complex industrial issues for the automotive field.`,
+    about_p2: "Curious and methodical, I'm passionate about designing mechanical systems, structural dimensioning and new technologies discovery. I've worked on projects involving engine design and team project management.",
+    about_p3: "Open to both technical and human challenges, I'm looking to gain meaningful international experience in any area of mechanical engineering.",
+    chip_work_study: "Work-Study", chip_international: "International", chip_music: "Music",
+    skills_title: "My technical", skills_title2: "stack",
+    skill1_title: "Design & CAD", skill1_t4: "Tech. drawing", skill1_t5: "Tolerancing",
+    skill2_title: "Mechanics & Analysis", skill2_t1: "Structural mech.", skill2_t2: "Thermodynamics", skill2_t3: "Kinematics", skill2_t4: "Fluid mech.", skill2_t5: "Sizing",
+    skill3_title: "Digital Tools", skill3_t4: "Simulation",
+    skill4_title: "Materials Science", skill4_t1: "Crystallography", skill4_t2: "Phase transitions", skill4_t3: "Dislocations", skill4_t4: "Heat treatments",
+    skill5_title: "Soft Skills", skill5_t1: "Precision", skill5_t2: "Teamwork", skill5_t3: "Project management", skill5_t4: "Adaptability",
+    skill6_title: "International", skill6_t1: "Technical English", skill6_t2: "Pro. writing", skill6_t3: "Writing and oral comprehension",
+    projects_title: "What I've", projects_title2: "built",
+    proj1_title: "The VEGA Moteur", proj1_desc: "Full design: Development of specifiactions, performance, design and customizable features.",
+    proj2_title: "Workout Tracker Excel / VBA", proj2_desc: "Automated sports tracking system with VBA macros: guided input, data correction, goal tracking, and progressive load management based on performance.",
+    proj3_title: "Design and dimensioning of an overhead crane", proj3_desc: "Design of an overhead cran system from specifications. realisation via several calculations and manufacturing methods ",
+    proj4_title: "Decarburization of steel analysis", proj4_desc: "Effects studies, observations on carbon evaporation. Microhardness tests on several samples.",
+    tag_sizing: "Sizing", tag_work: "Project", tag_automation: "Automation",
+    tag_simulation: "Simulation", tag_academic: "Academic", tag_materials: "Materials",
+    internship_title: "Looking for an", internship_title2: "internship",
+    internship_h3: "Open to any international opportunity in mechanical engineering",
+    internship_p1: "As part of my apprenticeship degree at UTBM, I'm looking for a 3-month internship abroad. Adaptable and motivated, I welcome any offer in design, R&D, simulation, maintenance or transportation.",
+    internship_p2: "Autonomous, rigorous and adaptable, I integrate quickly into demanding and multicultural environments.",
+    avail_text: "Available from late August 2026",
+    si_period_label: "Period", si_period_val: "Late August → Late November 2026 (≈ 3 months)",
+    si_dest_label: "Destinations", si_dest_val: "Europe · Americas · Asia — any country considered",
+    si_fields_label: "Fields", si_fields_val: "Design · R&D · Simulation · Transportation · Industrial",
+    si_lang_label: "Languages", si_lang_val: "French (native) · English (technical)",
+    contact_title: "Let's work", contact_title2: "together",
+    contact_intro: "An internship offer, a question, or just want to connect? Write to me — I reply within 24h.",
+    cl_email_sub: "Professional email", cl_linkedin_sub: "Professional profile", cl_cv_text: "Download my CV", 
+    form_firstname: "First name", form_firstname_ph: "John",
+    form_lastname: "Last name", form_lastname_ph: "Smith",
+    form_email: "Email", form_email_ph: "john@company.com",
+    form_company: "Company", form_company_ph: "Your company name",
+    form_message: "Message", form_message_ph: "Describe your internship offer...",
+    form_submit: "Send",
+    footer_sub: "UTBM · Mechanical Engineering & Transportations · Belfort, France",
+    timeline_title: "My", timeline_title2: "journey",
+    tl1_date: "2022 — 2025", tl1_title: "Bachelor's Degree in Mechanical Engineering", tl1_sub: "IUT de Rennes · 3-year degree", tl1_desc: "Training in mechanical design, manufacturing processes (milling, turning, laser cutting) and CAD tools. Hands-on projects in workshop and design offices.", tl1_badge: "Graduated",
+    tl2_date: "January 2024 — March 2024 — Internship", tl2_title: "Internship — CNH Industrial (Coëx)", tl2_sub: "Design of an automatic lubrication system", tl2_desc: "Design and sizing of an automatic lubrication system for grape and olive harvesters. Work in design office, CREO 7 modelling, definition drawings.", tl2_badge: "Field experience",
+    tl3_date: "September 2024 — Present", tl3_title: "Apprenticeship — AKKODIS (Cesson-Sévigné)", tl3_sub: "Engineering · BIW Tooling Design", tl3_desc: "Body-in-white (BIW) tooling design in CATIA V5, task automation via VBA macros, participation in international technical meetings in English.", tl3_badge: "Ongoing",
+    tl4_date: "September 2025 — Present", tl4_title: "UTBM — Mechanical Engineering & Transportation", tl4_sub: "University of Technology of Belfort-Montbéliard · 2nd year", tl4_desc: "Work-study engineering degree specialized in GM-TR. Advanced mechanics, thermodynamics, materials science, applied mathematics, economics.", tl4_badge: "Ongoing",
+    tl5_date: "August 2026", tl5_title: "International Internship — upcoming", tl5_sub: "Europe · Americas · Asia", tl5_desc: "Looking for a 3-month opportunity abroad in mechanical engineering. Design, R&D, simulation, transportation — all proposals welcome!", tl5_badge: "🔍 Seeking",
+    map_title: "My target", map_title2: "destinations",
+    map_subtitle: "The regions of the world where I'm looking for an internship — click a marker to learn more.",
+    float_cv: "Download CV", float_top: "Back to top",
+    map_marker1_title: '📍 Belfort, France', map_marker1_desc: "My starting point — currently on a work-study contract at AKKODIS.", map_marker1_tag: '🏠 Home base',
+    map_marker2_title: '🇪🇺 Europe', map_marker2_desc: "Germany, Spain, Italy, Switzerland, Netherlands... Any European destination is considered.", map_marker2_tag: '✈️ Target destination',
+    map_marker3_title: '🌎 Americas', map_marker3_desc: "USA, Canada, Mexico, Brazil... Open to any opportunity on the American continent.", map_marker3_tag: '✈️ Target destination',
+    map_marker4_title: '🌏 Asia', map_marker4_desc: "Japan, South Korea, China, India, Singapore... The Asian continent is of particular interest.", map_marker4_tag: '✈️ Target destination',
+    map_marker5_title: '🌍 Africa & Middle East', map_marker5_desc: "Morocco, UAE, South Africa... All proposals are welcome!", map_marker5_tag: '✈️ Target destination',
+    projects_hint: "👆 Click on a project to see the details"
+  },
+
+  es: {
+  nav_about: "Sobre mí", nav_skills: "Habilidades", nav_projects: "Proyectos",
+  nav_internship: "Prácticas", nav_contact: "Contacto",
+  hero_badge: "Disponible — Prácticas internacionales Ago–Nov 2026",
+  hero_desc: `Estudiante comenzando mi 2º año de <strong>FISA Mecánica y Transporte</strong> en la UTBM. Apasionado por el diseño, la simulación y los sistemas mecánicos complejos. Busco una oportunidad de prácticas en el extranjero para superar mis límites, ganar experiencia internacional y descubrir nuevas culturas.`,
+  hero_cta_contact: "Contactarme", hero_cta_projects: "Ver mis proyectos",
+  stat_year: "Año en UTBM", stat_months: "Meses de prácticas", stat_destinations: "Destinos",
+  scroll: "Scroll",
+  about_title: "¿Quién soy",
+  photo_placeholder: "Tu foto aquí",
+  about_p1: `Soy <strong>Noah Bellanger</strong>, estudiante de 2º año de FISA en la <strong>UTBM</strong> (Universidad de Tecnología de Belfort-Montbéliard), especializado en <strong>Mecánica y Transportes</strong>. Actualmente estoy en alternancia en una oficina técnica donde me enfrento a problemas industriales complejos en el sector automovilístico.`,
+  about_p2: "Curioso y metódico, me apasiona el diseño de sistemas mecánicos, el dimensionamiento de estructuras y el descubrimiento de nuevas tecnologías. He trabajado en proyectos de diseño de motores y gestión de proyectos en equipo.",
+  about_p3: "Abierto a retos técnicos y humanos, busco adquirir una experiencia internacional significativa en cualquier ámbito de la ingeniería mecánica.",
+  chip_work_study: "Alternancia", chip_international: "Internacional", chip_music: "Música",
+  skills_title: "Mi stack", skills_title2: "técnico",
+  skill1_title: "Diseño & CAD", skill1_t4: "Dibujo técnico", skill1_t5: "Tolerancias",
+  skill2_title: "Mecánica & Cálculo", skill2_t1: "Resistencia mat.", skill2_t2: "Termodinámica", skill2_t3: "Cinemática", skill2_t4: "Mecánica de fluidos", skill2_t5: "Dimensionamiento",
+  skill3_title: "Herramientas digitales", skill3_t4: "Simulación",
+  skill4_title: "Ciencia de materiales", skill4_t1: "Cristalografía", skill4_t2: "Transf. de fase", skill4_t3: "Dislocaciones", skill4_t4: "Tratamientos term.",
+  skill5_title: "Habilidades blandas", skill5_t1: "Rigor", skill5_t2: "Trabajo en equipo", skill5_t3: "Gestión de proyectos", skill5_t4: "Adaptabilidad",
+  skill6_title: "Internacional", skill6_t1: "Inglés técnico", skill6_t2: "Redacción pro.", skill6_t3: "Comprensión y expresión oral",
+  projects_title: "Lo que he", projects_title2: "realizado",
+  proj1_title: "El Motor VEGA", proj1_desc: "Diseño completo: creación del pliego de condiciones, definición de las prestaciones, diseño y funciones personalizables.",
+  proj2_title: "Seguimiento de entrenamiento Excel / VBA", proj2_desc: "Sistema automatizado de seguimiento deportivo con macros VBA: entrada guiada, corrección de datos, seguimiento de objetivos y progresión de cargas según el rendimiento.",
+  proj3_title: "Diseño y dimensionamiento de un puente grúa", proj3_desc: "Diseño de un sistema de puente grúa a partir de un pliego de condiciones. Realización mediante varios métodos de cálculo y fabricación.",
+  proj4_title: "Análisis de la descarburación del acero", proj4_desc: "Estudio de los efectos de la descarburación en muestras de acero calentadas a 800°C. Ensayos de microdureza sobre varias muestras.",
+  tag_sizing: "Dimensionamiento", tag_work: "Proyecto", tag_automation: "Automatización",
+  tag_simulation: "Simulación", tag_academic: "Académico", tag_materials: "Materiales",
+  internship_title: "Busco unas", internship_title2: "prácticas",
+  internship_h3: "Abierto a cualquier oportunidad internacional en ingeniería mecánica",
+  internship_p1: "En el marco de mi formación en alternancia en la UTBM, busco unas prácticas de 3 meses en el extranjero. Versátil y motivado, acepto cualquier propuesta en diseño, I+D, simulación, mantenimiento o transporte.",
+  internship_p2: "Autónomo, riguroso y adaptable, me integro rápidamente en entornos exigentes y multiculturales.",
+  avail_text: "Disponible desde finales de agosto de 2026",
+  si_period_label: "Período", si_period_val: "Finales de agosto → Finales de noviembre 2026 (≈ 3 meses)",
+  si_dest_label: "Destinos", si_dest_val: "Europa · Américas · Asia — cualquier país considerado",
+  si_fields_label: "Ámbitos", si_fields_val: "Diseño · I+D · Simulación · Transporte · Industrial",
+  si_lang_label: "Idiomas", si_lang_val: "Francés (nativo) · Inglés (técnico) · Español (básico) · Ruso (principiante)",
+  contact_title: "Trabajemos", contact_title2: "juntos",
+  contact_intro: "¿Una oferta de prácticas, una pregunta o simplemente quieres conectar? Escríbeme, respondo en menos de 24h.",
+  cl_email_sub: "Correo profesional", cl_linkedin_sub: "Perfil profesional", cl_cv_text: "Descargar mi CV",
+  form_firstname: "Nombre", form_firstname_ph: "Juan",
+  form_lastname: "Apellido", form_lastname_ph: "García",
+  form_email: "Email", form_email_ph: "juan@empresa.com",
+  form_company: "Empresa", form_company_ph: "Nombre de tu empresa",
+  form_message: "Mensaje", form_message_ph: "Describe tu oferta de prácticas...",
+  form_submit: "Enviar",
+  footer_sub: "UTBM · Mecánica y Transportes · Belfort, Francia",
+  timeline_title: "Mi", timeline_title2: "trayectoria",
+  tl1_date: "2022 — 2025", tl1_title: "Grado en Ingeniería Mecánica y Productiva", tl1_sub: "IUT de Rennes · Grado de 3 años", tl1_desc: "Formación en diseño mecánico, procesos de fabricación (fresado, torneado, corte láser) y herramientas CAD. Proyectos prácticos en taller y oficinas técnicas.", tl1_badge: "Titulado",
+  tl2_date: "Enero 2024 — Marzo 2024 — Prácticas", tl2_title: "Prácticas — CNH Industrial (Coëx)", tl2_sub: "Diseño de un sistema de lubricación automática para vendimiadoras", tl2_desc: "Diseño y dimensionamiento de un sistema de lubricación automática para máquinas vendimiadores. Trabajo en oficina técnica, modelado en CREO 7, planos de definición.", tl2_badge: "Experiencia práctica",
+  tl3_date: "Septiembre 2024 — Hoy", tl3_title: "Alternancia — AKKODIS (Cesson-Sévigné)", tl3_sub: "Ingeniería · Diseño de utillajes de ensamblaje de carrocería", tl3_desc: "Diseño de utillajes de ensamblaje de carrocería en CATIA V5, automatización de tareas con macros VBA, participación en reuniones técnicas internacionales en inglés.", tl3_badge: "En curso",
+  tl4_date: "Septiembre 2025 — Hoy", tl4_title: "UTBM — FISA Mecánica y Transporte", tl4_sub: "Universidad de Tecnología de Belfort-Montbéliard · 2º año", tl4_desc: "Formación de ingeniero en alternancia especializada en M-TR. Mecánica de fluidos, termodinámica, ciencia de materiales, matemáticas aplicadas, economía.", tl4_badge: "En curso",
+  tl5_date: "Agosto 2026", tl5_title: "Prácticas internacionales — próximamente", tl5_sub: "Europa · Américas · Asia", tl5_desc: "En busca de una oportunidad de 3 meses en el extranjero en ingeniería mecánica. Diseño, I+D, simulación, transporte — ¡todas las propuestas son bienvenidas!", tl5_badge: "🔍 En búsqueda",
+  map_title: "Mis destinos", map_title2: "objetivo",
+  map_subtitle: "Las regiones del mundo donde busco prácticas — haz clic en un marcador para saber más.",
+  float_cv: "Descargar CV", float_top: "Volver arriba",
+  map_marker1_title: '📍 Belfort, Francia', map_marker1_desc: "Mi punto de partida — actualmente en alternancia en AKKODIS.", map_marker1_tag: '🏠 Base',
+  map_marker2_title: '🇪🇺 Europa', map_marker2_desc: "Alemania, España, Italia, Suiza, Países Bajos... Se considera cualquier destino europeo.", map_marker2_tag: '✈️ Destino objetivo',
+  map_marker3_title: '🌎 Américas', map_marker3_desc: "EE.UU., Canadá, México, Brasil... Abierto a cualquier oportunidad en el continente americano.", map_marker3_tag: '✈️ Destino objetivo',
+  map_marker4_title: '🌏 Asia', map_marker4_desc: "Japón, Corea del Sur, China, India, Singapur... El continente asiático me interesa especialmente.", map_marker4_tag: '✈️ Destino objetivo',
+  map_marker5_title: '🌍 África y Oriente Medio', map_marker5_desc: "Marruecos, EAU, Sudáfrica... ¡Todas las propuestas son bienvenidas!", map_marker5_tag: '✈️ Destino objetivo',
+  projects_hint: "👆 Haz clic en un proyecto para ver los detalles",
+}
+};
+
+// ── LANG ENGINE ─────────────────────────────────────────────
+let currentLang = localStorage.getItem('lang') || 'fr';
+
+function setLang(lang) {
+
+  currentLang = lang;
+  localStorage.setItem('lang', lang);
+
+  // Update buttons
+  document.querySelectorAll('.lang-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.textContent === lang.toUpperCase());
+  });
+
+  // Fade out
+  updateMapPopups();
+  document.body.classList.add('lang-switching');
+
+  setTimeout(() => {
+    const t = translations[lang];
+
+    // Text nodes
+    document.querySelectorAll('[data-i18n]').forEach(el => {
+      const key = el.getAttribute('data-i18n');
+      if (t[key] !== undefined) el.innerHTML = t[key];
+    });
+
+    // Placeholders
+    document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+      const key = el.getAttribute('data-i18n-placeholder');
+      if (t[key] !== undefined) el.placeholder = t[key];
+    });
+
+    // html lang attr
+    document.documentElement.lang = lang;
+
+    // Fade in
+    document.body.classList.remove('lang-switching');
+  }, 180);
+  // Met à jour le lien du CV selon la langue
+const cvLink = document.getElementById('cv-link');
+if (cvLink) {
+  const cvFiles = {
+    fr: 'CV_Noah_Bellanger_FR.pdf',
+    en: 'CV_Noah_Bellanger_EN.pdf',
+    es: 'CV_Noah_Bellanger_EN.pdf' // utilise la version EN pour l'espagnol
+  };
+  cvLink.href = cvFiles[lang] || cvFiles['fr'];
+}
+}
+
+// ── CURSOR ──────────────────────────────────────────────────
+const cursor = document.getElementById('cursor');
+const ring = document.getElementById('cursorRing');
+document.addEventListener('mousemove', e => {
+  cursor.style.left = e.clientX + 'px';
+  cursor.style.top  = e.clientY + 'px';
+  ring.style.left   = e.clientX + 'px';
+  ring.style.top    = e.clientY + 'px';
+});
+document.querySelectorAll('a, button, .project-row, .skill-card').forEach(el => {
+  el.addEventListener('mouseenter', () => {
+    cursor.style.width = '20px'; cursor.style.height = '20px';
+    ring.style.width = '56px'; ring.style.height = '56px';
+    ring.style.borderColor = 'var(--purple)';
+  });
+  el.addEventListener('mouseleave', () => {
+    cursor.style.width = '12px'; cursor.style.height = '12px';
+    ring.style.width = '36px'; ring.style.height = '36px';
+    ring.style.borderColor = 'var(--cyan)';
+  });
+});
+
+// ── SCROLL REVEAL ────────────────────────────────────────────
+const obs = new IntersectionObserver(entries => {
+  entries.forEach(e => { if (e.isIntersecting) e.target.classList.add('visible'); });
+}, { threshold: 0.1 });
+document.querySelectorAll('.fade-up').forEach(el => obs.observe(el));
+window.addEventListener('load', () => {
+  // Animations hero
+  document.querySelectorAll('.hero .fade-up').forEach((el, i) => {
+    setTimeout(() => el.classList.add('visible'), 80 + i * 120);
+  });
+  // Applique la langue active dès le chargement
+  setLang(currentLang);
+});
+// ── MODAL DATA ───────────────────────────────────────────────
+const projectsData = {
+  fr: [
+    {
+      tag: "Conception mécanique · CP70",
+      title: "Le VEGA Moteur",
+      desc: "Projet réalisé en équipe lors des cours de CP70. L'objectif était de concevoir et dimensionner un moteur innovant, modulable et construire son cahier des charges. Inspiré du moteur RevForce de l'entreprise Alpha-Otto",
+      highlights: [
+        "Définitions des performances et du design",
+        "Création du cahier des charges",
+        "Conception de tous les composants du moteur et définitions des matériaux",
+        "Création de paramètres pour moduler le moteur (de V2 à V12)",
+      ],
+      tags: ["CAO", "Dimensionnement", "RevForce", "Travail d'équipe", "CP70"],
+      colors: ["pt-cyan","pt-purple","pt-pink","pt-green","pt-pink"],
+      image: "v12.png"
+    },
+    {
+      tag: "Automatisation · Projet personnel",
+      title: "Suivi d'entraînement Excel / VBA",
+      desc: "Outil de tracking sportif personnel développé sous Excel avec macros VBA. L'objectif : automatiser la gestion des séances de musculation et suivre la progression des charges semaine après semaine.",
+      highlights: [
+        "Interface de saisie guidée avec validation des données et gestion des erreurs",
+        "Progression automatique des charges selon un algorithme basé sur les performances",
+        "Tableau de bord visuel avec graphiques de progression par groupe musculaire",
+        "Export des données et génération de rapports hebdomadaires automatisés",
+      ],
+      tags: ["Excel", "VBA", "Automatisation", "Projet personnel"],
+      colors: ["pt-green","pt-cyan","pt-purple","pt-pink"],
+      image: "Sport Tracker.png"
+    },
+    {
+      tag: "SAÉ · Académique",
+      title: "Conception et dimensionnement d'un pont roulant",
+      desc: "Projet SAÉ réalisé à l'IUT, l'objectif était de concevoir un pont roulant suivant différentes méthodes et de déterminer lesquelles étaient les meilleures. Nous partions du cahier des charges et allions de la conception jusqu'au montage dans l'usine du client. ",
+      highlights: [
+        "Application des exigences du cahier des charges",
+        "Utilisation de différentes méthodes de calcul (RDM) ainsi que de fabrication du pont roulant",
+        "Mise en relation avec des fournisseurs afin d'obtenir les données des composants nécessaires à la conception",
+        "Création d'une notice de montage du système dans l'usine",
+      ],
+      tags: ["RDM", "Conception", "Simulation", "Académique", "IUT"],
+      colors: ["pt-pink","pt-cyan","pt-cyan","pt-purple","pt-green"],
+      image: "Monopoutre_pose-02.png"
+    },
+    {
+      tag: "Science des matériaux · Académique",
+      title: "Analyse de la décarburation de l'acier",
+      desc: "Étude complète des effets de la décarburation sur différents échantillons d'acier chauffés à 800°C sur différentes périodes (2h à 6h) (cours MA72, UTBM). Observations microscopique, essais de microdureté.",
+      highlights: [
+        "Étude de l'évaporation de carbone sur échantillons d'acier",
+        "Polissage et attaque au nital des échantillons pour observer les défauts",
+        "Essais de microdureté afin de constater les effets de la décarburation",
+        "Rédaction d'un rapport d'analyse sur les observations et essais",
+      ],
+      tags: ["Matériaux", "Cristallographie", "Traitement th.", "Microdureté", "Académique"],
+      colors: ["pt-green","pt-cyan","pt-purple","pt-pink","pt-purple"],
+      image: "Diffusion carbone.png"
+    },
+  ],
+  en: [
+    {
+      tag: "Mechanical Design · CP70",
+      title: "The VEGA Moteur",
+      desc: "Team project carried out during the CP70 courses. The goal was to design and size an innovative and customizable engine and write its specifications. Inspired by the RevForce engine, from the Alpha-Otto company",
+      highlights: [
+        "Definition of the performances and the design",
+        "Specifications development",
+        "Creation of parameters to customize the engine",
+        "Creation od parameters to customize the engine",
+      ],
+      tags: ["CAD", "Sizing", "RevForce", "Team work", "CP70"],
+      colors: ["pt-cyan","pt-purple","pt-pink","pt-green","pt-pink"],
+      image: "v12.png"
+    },
+    {
+      tag: "Automation · Personal Project",
+      title: "Workout Tracker Excel / VBA",
+      desc: "Personal sports tracking tool built in Excel with VBA macros. The goal: automate workout session management and track load progression week after week.",
+      highlights: [
+        "Guided input interface with data validation and error handling",
+        "Automatic load progression using a performance-based algorithm",
+        "Visual dashboard with progression charts by muscle group",
+        "Data export and automated weekly report generation",
+      ],
+      tags: ["Excel", "VBA", "Automation", "Personal Project"],
+      colors: ["pt-green","pt-cyan","pt-purple","pt-pink"],
+      image: "Sport tracker.png"
+    },
+    {
+      tag: "SAE · Academic",
+      title: "Design and dimensioning of an overhead crane",
+      desc: "SAE Project at the UIT, the goal was to design an overhead crane regarding different methods et determine which were the best. We started from the specifications and continue from the design to the installation inside the customer's factory",
+      highlights: [
+        "Application of the specifications requirements",
+        "Use of different methods of calculation and for the manufacturing of the overhead crane",
+        "Connecting with suppliers to obtain component data necessary for the design",
+        "Creation of an installation notice",
+      ],
+      tags: ["Structural Mech.", "Conception", "Simulation", "Academic", "UIT"],
+      colors: ["pt-pink","pt-cyan","pt-cyan","pt-purple","pt-green"],
+      image: "Monopoutre_pose-02.png"
+    },
+    {
+      tag: "Materials Science · Academic",
+      title: "Decarburization of steel analysis",
+      desc: "Complet study of the decarurization effects on different steel samples, heated to 800°C on different periods (from 2h to 6h) (MA72 course, UTBM). microscopic observations, microhardness tests.",
+      highlights: [
+        "Study of carbon evaporation on steel samples",
+        "Polishing and nital attack on the samples to observe defects",
+        "Microhardness tests to observe the decarburization effects",
+        "Writing of an analysis report on the observations and the tests",
+      ],
+      tags: ["Materials", "Crystallography", "Heat treatment", "Microhardness", "Academic"],
+      colors: ["pt-green","pt-cyan","pt-purple","pt-pink","pt-purple"],
+      image: "Diffusion carbone.png"
+    },
+  ],
+  es: [
+  {
+    tag: "Diseño Mecánico · CP70",
+    title: "El Motor VEGA",
+    desc: "Proyecto en equipo realizado durante los cursos CP70. El objetivo era diseñar y dimensionar un motor innovador y personalizable, y redactar su pliego de condiciones. Inspirado en el motor RevForce de la empresa Alpha-Otto.",
+    highlights: [
+      "Definición de las prestaciones y del diseño",
+      "Redacción del pliego de condiciones",
+      "Diseño de todos los componentes del motor y definición de los materiales",
+      "Creación de parámetros para personalizar el motor (de V2 a V12)",
+    ],
+    tags: ["CAD", "Dimensionamiento", "RevForce", "Trabajo en equipo", "CP70"],
+    colors: ["pt-cyan","pt-purple","pt-pink","pt-green","pt-pink"],
+    image: "v12.png"
+  },
+  {
+    tag: "Automatización · Proyecto personal",
+    title: "Seguimiento de entrenamiento Excel / VBA",
+    desc: "Herramienta personal de seguimiento deportivo en Excel con macros VBA. El objetivo: automatizar la gestión de las sesiones de musculación y seguir la progresión de las cargas semana a semana.",
+    highlights: [
+      "Interfaz de entrada guiada con validación de datos y gestión de errores",
+      "Progresión automática de las cargas mediante un algoritmo basado en el rendimiento",
+      "Panel visual con gráficos de progresión por grupo muscular",
+      "Exportación de datos y generación automatizada de informes semanales",
+    ],
+    tags: ["Excel", "VBA", "Automatización", "Proyecto personal"],
+    colors: ["pt-green","pt-cyan","pt-purple","pt-pink"],
+    image: "Sport tracker.png"
+  },
+  {
+    tag: "SAÉ · Académico",
+    title: "Diseño y dimensionamiento de un puente grúa",
+    desc: "Proyecto SAÉ realizado en el IUT. El objetivo era diseñar un puente grúa según distintos métodos y determinar cuáles eran los mejores. Partimos del pliego de condiciones hasta llegar al montaje en la fábrica del cliente.",
+    highlights: [
+      "Aplicación de los requisitos del pliego de condiciones",
+      "Uso de distintos métodos de cálculo (resistencia de materiales) y de fabricación",
+      "Contacto con proveedores para obtener los datos de los componentes necesarios",
+      "Redacción de una guía de montaje del sistema en la fábrica",
+    ],
+    tags: ["Resist. mat.", "Concepción", "Simulación", "Académico", "IUT"],
+    colors: ["pt-pink","pt-cyan","pt-cyan","pt-purple","pt-green"],
+    image: "Monopoutre_pose-02.png"
+  },
+  {
+    tag: "Ciencia de materiales · Académico",
+    title: "Análisis de la descarburación del acero",
+    desc: "Estudio completo de los efectos de la descarburación sobre distintas muestras de acero calentadas a 800°C durante diferentes períodos (de 2h a 6h) (curso MA72, UTBM). Observaciones microscópicas, ensayos de microdureza.",
+    highlights: [
+      "Estudio de la evaporación de carbono en muestras de acero",
+      "Pulido y ataque al nital de las muestras para observar los defectos",
+      "Ensayos de microdureza para constatar los efectos de la descarburación",
+      "Redacción de un informe de análisis sobre las observaciones y ensayos",
+    ],
+    tags: ["Materiales", "Cristalografía", "Trat. térmico", "Microdureza", "Académico"],
+    colors: ["pt-green","pt-cyan","pt-purple","pt-pink","pt-purple"],
+    image: "Diffusion carbone.png"
+  },
+],
+};
+
+// ── MODAL FUNCTIONS ──────────────────────────────────────────
+function openModal(index) {
+  const data = projectsData[currentLang][index];
+  const overlay = document.getElementById('modalOverlay');
+  const emojis = ['⚙️','📊','🏗️','🔬'];
+
+  // Image ou placeholder
+  const imgArea = document.getElementById('modal-image-area');
+  if (data.image) {
+    imgArea.innerHTML = `<img src="${data.image}" alt="${data.title}" class="modal-img"/>`;
+  } else {
+    imgArea.innerHTML = `<div class="modal-img-placeholder"><span>${emojis[index]}</span><span>Image à venir</span></div>`;
+  }
+
+  document.getElementById('modal-tag').textContent = data.tag;
+  document.getElementById('modal-title').textContent = data.title;
+  document.getElementById('modal-desc').textContent = data.desc;
+
+  document.getElementById('modal-highlights').innerHTML =
+    data.highlights.map(h => `<div class="modal-highlight">${h}</div>`).join('');
+
+  document.getElementById('modal-tags').innerHTML =
+    data.tags.map((t, i) => `<span class="proj-tag ${data.colors[i] || 'pt-cyan'}">${t}</span>`).join('');
+
+  overlay.classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeModal() {
+  document.getElementById('modalOverlay').classList.remove('open');
+  document.body.style.overflow = '';
+}
+
+function handleOverlayClick(e) {
+  if (e.target === document.getElementById('modalOverlay')) closeModal();
+}
+
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+// ── TIMELINE ANIMATION ───────────────────────────────────────
+const tlObs = new IntersectionObserver(entries => {
+  entries.forEach((e, i) => {
+    if (e.isIntersecting) {
+      setTimeout(() => e.target.classList.add('tl-visible'), i * 120);
+    }
+  });
+}, { threshold: 0.15 });
+document.querySelectorAll('.tl-item').forEach(el => tlObs.observe(el));
+// Sécurité — reset overflow si aucune modale ouverte
+window.addEventListener('keydown', e => {
+  if (e.key === 'Escape') {
+    closeModal();
+    document.body.style.overflow = '';
+  }
+});
+// ── SCROLL INDICATOR ─────────────────────────────────────────
+window.addEventListener('scroll', () => {
+  const scrollTop = window.scrollY;
+  const docHeight = document.documentElement.scrollHeight - window.innerHeight;
+  const progress = (scrollTop / docHeight) * 100;
+  document.getElementById('scrollIndicator').style.width = progress + '%';
+});
+// ── THEME TOGGLE ─────────────────────────────────────────────
+const savedTheme = localStorage.getItem('theme') || 'dark';
+if (savedTheme === 'light') {
+  document.body.classList.add('light');
+  document.getElementById('themeBtn').textContent = '☀️';
+}
+
+function toggleTheme() {
+  const btn = document.getElementById('themeBtn');
+  const isLight = document.body.classList.toggle('light');
+  btn.textContent = isLight ? '☀️' : '🌙';
+  localStorage.setItem('theme', isLight ? 'light' : 'dark');
+}
+// ── CARTE LEAFLET ─────────────────────────────────────────────
+const markers = [
+  {
+    lat: 47.64, lng: 6.85,
+    color: '#00e5ff',
+    titleKey: 'map_marker1_title',
+    descKey: 'map_marker1_desc',
+    tagKey: 'map_marker1_tag',
+  },
+  {
+    lat: 48.85, lng: 10.0,
+    color: '#a855f7',
+    titleKey: 'map_marker2_title',
+    descKey: 'map_marker2_desc',
+    tagKey: 'map_marker2_tag',
+  },
+  {
+    lat: 40.0, lng: -95.0,
+    color: '#f472b6',
+    titleKey: 'map_marker3_title',
+    descKey: 'map_marker3_desc',
+    tagKey: 'map_marker3_tag',
+  },
+  {
+    lat: 35.0, lng: 105.0,
+    color: '#22d3a4',
+    titleKey: 'map_marker4_title',
+    descKey: 'map_marker4_desc',
+    tagKey: 'map_marker4_tag',
+  },
+  {
+    lat: -15.0, lng: 25.0,
+    color: '#fb923c',
+    titleKey: 'map_marker5_title',
+    descKey: 'map_marker5_desc',
+    tagKey: 'map_marker5_tag',
+  },
+];
+
+let mapInstance = null;
+let leafletMarkers = [];
+
+function initMap() {
+  mapInstance = L.map('map', {
+    center: [30, 15],
+    zoom: 2,
+    minZoom: 2,
+    maxZoom: 6,
+    zoomControl: true,
+    scrollWheelZoom: false,
+  });
+
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '© OpenStreetMap contributors',
+  }).addTo(mapInstance);
+
+  markers.forEach(m => {
+    const icon = L.divIcon({
+      className: '',
+      html: `<div style="
+        width: 14px; height: 14px;
+        background: ${m.color};
+        border-radius: 50%;
+        border: 2px solid rgba(255,255,255,0.6);
+        box-shadow: 0 0 12px ${m.color}, 0 0 24px ${m.color}40;
+        cursor: pointer;
+      "></div>`,
+      iconSize: [14, 14],
+      iconAnchor: [7, 7],
+    });
+
+    const tr = translations[currentLang];
+    const marker = L.marker([m.lat, m.lng], { icon })
+      .addTo(mapInstance)
+      .bindPopup(`
+        <div class="popup-title">${tr[m.titleKey]}</div>
+        <div class="popup-desc">${tr[m.descKey]}</div>
+        <span class="popup-tag">${tr[m.tagKey]}</span>
+      `, { maxWidth: 260 });
+
+    leafletMarkers.push({ leaflet: marker, data: m });
+  });
+}
+
+function updateMapPopups() {
+  if (!mapInstance) return;
+  const tr = translations[currentLang];
+  leafletMarkers.forEach(({ leaflet, data }) => {
+    leaflet.setPopupContent(`
+      <div class="popup-title">${tr[data.titleKey]}</div>
+      <div class="popup-desc">${tr[data.descKey]}</div>
+      <span class="popup-tag">${tr[data.tagKey]}</span>
+    `);
+  });
+}
+
+
+// Init carte quand elle devient visible
+const mapObs = new IntersectionObserver(entries => {
+  entries.forEach(e => {
+    if (e.isIntersecting) {
+      initMap();
+      mapObs.disconnect();
+    }
+  });
+}, { threshold: 0.1 });
+mapObs.observe(document.getElementById('map'));
+
+// ── BOUTONS FLOTTANTS ─────────────────────────────────────────
+window.addEventListener('load', () => {
+  const cvFloatBtn = document.getElementById('cvFloatBtn');
+  const topBtn = document.getElementById('topBtn');
+
+  window.addEventListener('scroll', () => {
+    const show = window.scrollY > 400;
+    cvFloatBtn.classList.toggle('visible', show);
+    topBtn.classList.toggle('visible', show);
+  });
+
+  function updateCvFloatLink() {
+    const cvFiles = {
+      fr: 'CV_Noah_Bellanger_FR.pdf',
+      en: 'CV_Noah_Bellanger_EN.pdf',
+      es: 'CV_Noah_Bellanger_EN.pdf',
+    };
+    cvFloatBtn.onclick = () => window.open(cvFiles[currentLang] || cvFiles['fr']);
+  }
+
+  const _setLang = setLang;
+  setLang = function(lang) {
+    _setLang(lang);
+    updateCvFloatLink();
+  };
+  updateCvFloatLink();
+});
+// ── COMPTEURS ANIMÉS ──────────────────────────────────────────
+function animateCounter(el) {
+  const target = el.getAttribute('data-target');
+  const suffix = el.getAttribute('data-suffix') || '';
+
+  // Si c'est le symbole ∞, on fait juste un effet d'apparition
+  if (target === '∞') {
+    let dots = 0;
+    const interval = setInterval(() => {
+      dots++;
+      el.textContent = '.'.repeat(dots);
+      if (dots >= 3) {
+        clearInterval(interval);
+        el.textContent = '∞';
+      }
+    }, 200);
+    return;
+  }
+
+  const end = parseInt(target);
+  const duration = 1200;
+  const step = 30;
+  const increment = Math.ceil(end / (duration / step));
+  let current = 0;
+
+  const timer = setInterval(() => {
+    current += increment;
+    if (current >= end) {
+      current = end;
+      clearInterval(timer);
+    }
+    el.textContent = current + suffix;
+  }, step);
+}
+
+// Déclenche les compteurs quand la hero est visible
+window.addEventListener('load', () => {
+  const heroStats = document.querySelector('.hero-stats');
+  if (heroStats) {
+    // Déclenche directement au chargement puisque la hero est visible
+    setTimeout(() => {
+      document.querySelectorAll('.stat-num[data-target]').forEach(el => {
+        animateCounter(el);
+      });
+    }, 600); // petit délai pour laisser la page s'afficher d'abord
+  }
+});
+
+// ── CURSEUR PAR SECTION ───────────────────────────────────────
+const sectionColors = {
+  accueil:     '--cyan',
+  apropos:     '--green',
+  competences: '--purple',
+  parcours:    '--yellow',
+  projets:     '--pink',
+  stage:       '--cyan',
+  carte:       '--green',
+  contact:     '--purple',
+};
+
+const sections = document.querySelectorAll('section[id]');
+
+const sectionObs = new IntersectionObserver(entries => {
+  entries.forEach(e => {
+    if (e.isIntersecting) {
+      const color = sectionColors[e.target.id];
+      if (color) {
+        const value = getComputedStyle(document.documentElement)
+          .getPropertyValue(color).trim();
+        cursor.style.background = value;
+        ring.style.borderColor = value;
+        document.getElementById('scrollIndicator').style.background =
+          `linear-gradient(90deg, ${value}, var(--purple), var(--pink))`;
+      }
+    }
+  });
+}, { threshold: 0.3 });
+
+sections.forEach(s => sectionObs.observe(s));
+</script>
+<!-- BOUTONS FLOTTANTS -->
+<div class="floating-btns">
+  <button class="float-btn cv-btn" id="cvFloatBtn" onclick="window.open('CV_Noah_Bellanger_FR.pdf')" title="Télécharger le CV">
+    📄
+    <span class="float-btn-tooltip" data-i18n="float_cv">Télécharger le CV</span>
+  </button>
+  <button class="float-btn top-btn" id="topBtn" onclick="window.scrollTo({top:0, behavior:'smooth'})">
+  ☝️
+    <span class="float-btn-tooltip" data-i18n="float_top">Retour en haut</span>
+  </button>
+</div>
+</body>
+</html>
